@@ -19,9 +19,11 @@ namespace IpFinder.Application.Services
         {
             var (firstOctet, secondOctet, thirdOctet, forthOctet) = IpSpliter(ip);
 
-            var classIp = FindIpClass(firstOctet);
+            var classIp = FindClassIp(firstOctet);
 
             MachineNumberValidation(classIp, machineNumber);
+
+            NetIdBoundValidation(classIp, secondOctet, thirdOctet, forthOctet);
 
             switch (classIp)
             {
@@ -40,6 +42,27 @@ namespace IpFinder.Application.Services
 
             string requestedMachineIp = IpGenarator(firstOctet, secondOctet, thirdOctet, forthOctet);
             return (requestedMachineIp, classIp);
+        }
+
+        private void NetIdBoundValidation(string classIp, int secondOctet, int thirdOctet, int forthOctet)
+        {
+            switch(classIp)
+            {
+                case "A":
+                    if (secondOctet is not 0 || thirdOctet is not 0 || forthOctet is not 0)
+                        throw new InValidIpFormatException("مقدار یکی از اکتت های دوم تا چهارم از 255 بیشتر است.");
+                    break;
+
+                case "B":
+                    if (thirdOctet is not 0 || forthOctet is not 0)
+                        throw new InValidIpFormatException("مقدار یکی از اکتت های سوم یا چهارم از 255 بیشتر است.");
+                    break;
+                
+                case "C":
+                    if (forthOctet is not 0)
+                        throw new InValidIpFormatException("مقدار اکتت چهارم از 255 بیشتر است.");
+                    break;
+            }
         }
 
         private void MachineNumberValidation(string classIp, int machineNumber)
@@ -66,7 +89,7 @@ namespace IpFinder.Application.Services
                     break;
 
                 default:
-                    throw new InValidIpFormatException("آی پی وارد شده کلاس‌فول نمی باشد.");
+                    throw new InValidIpFormatException("آی پی وارد شده از نوع سه کلاس اول نمی باشد.");
 
             }
         }
@@ -79,6 +102,9 @@ namespace IpFinder.Application.Services
             var octets = ip.Split(".");
 
             OctetValidation(octets);
+
+
+
 
             var firstOctet = int.Parse(octets[0]);
             var secondOctet = int.Parse(octets[1]);
@@ -109,7 +135,7 @@ namespace IpFinder.Application.Services
                 throw new InValidIpFormatException("آی پی وارد نشده است.");
         }
 
-        private string FindIpClass(int firstOctet)
+        private string FindClassIp(int firstOctet)
         {
             if (firstOctet <= 127)
                 return "A";

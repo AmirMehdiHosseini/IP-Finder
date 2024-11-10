@@ -40,3 +40,4 @@ D:\Education\5\شبکه\Projects\IpFinder\IpFinder\bin\Debug\net8.0\Microsoft.Ex
 D:\Education\5\شبکه\Projects\IpFinder\IpFinder\bin\Debug\net8.0\Microsoft.Extensions.Logging.dll
 D:\Education\5\شبکه\Projects\IpFinder\IpFinder\bin\Debug\net8.0\Microsoft.Extensions.Logging.Abstractions.dll
 D:\Education\5\شبکه\Projects\IpFinder\IpFinder\bin\Debug\net8.0\Microsoft.Extensions.Options.dll
+D:\Education\5\شبکه\Projects\IpFinder\IpFinder\obj\Debug\net8.0\IpFinder.sourcelink.json
