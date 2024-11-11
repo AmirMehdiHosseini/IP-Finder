@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("IpFinder")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e5b2c3278154a8bde9c3152312beb7daf058fd5f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9832ddd2decf4f663990e328447dca52484b5eaf")]
 [assembly: System.Reflection.AssemblyProductAttribute("IpFinder")]
 [assembly: System.Reflection.AssemblyTitleAttribute("IpFinder")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

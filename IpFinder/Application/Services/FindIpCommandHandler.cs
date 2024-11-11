@@ -1,4 +1,5 @@
 ﻿using IpFinder.Application.CommandModels;
+using IpFinder.Application.Constants;
 using IpFinder.Domain;
 using IpFinder.Exceptions;
 using IpFinder.ViewModels;
@@ -8,102 +9,99 @@ namespace IpFinder.Application.Services
 {
     public class FindIpCommandHandler : IFindIpCommandHandler
     {
+        private const string DOT = ".";
+        private const string IncludeNonNumericalCharacterRegesSample = @".*[^0-9]+.*";
         public async Task<IpViewModel> Handle(FindIpCommand request, CancellationToken cancellationToken)
         {
-            var (ip, @class) = IpFinder(request.Ip!, request.MachineNumber);
+            var (ip, @class) = await IpFinderAsync(request.Ip!, request.MachineNumber);
 
-            return new IpViewModel(ip, @class);
+            return new IpViewModel(ip, @class.Result.ToString()!);
         }
 
-        private (string, string) IpFinder(string ip, int machineNumber)
+        private async Task<(string, Task<string>)> IpFinderAsync(string ip, int machineNumber)
         {
-            var (firstOctet, secondOctet, thirdOctet, forthOctet) = IpSpliter(ip);
 
-            var classIp = FindClassIp(firstOctet);
+            var (firstOctet, secondOctet, thirdOctet, forthOctet) = await IpSpliterAsync(ip);
 
-            MachineNumberValidation(classIp, machineNumber);
+            var classIp = FindClassIpAsync(firstOctet);
 
-            NetIdBoundValidation(classIp, secondOctet, thirdOctet, forthOctet);
+            await Task.WhenAll(
+                MachineNumberValidationAsync(classIp, machineNumber),
+                NetIdOctetBoundValidationAsync(classIp, secondOctet, thirdOctet, forthOctet)
+            );
 
-            switch (classIp)
+            switch (classIp.Result.ToString())
             {
-                case "A":
+                case IpClass.A:
                     ClassA(machineNumber, ref secondOctet, ref thirdOctet, ref forthOctet);
                     break;
 
-                case "B":
+                case IpClass.B:
                     ClassB(machineNumber, ref thirdOctet, ref forthOctet);
                     break;
 
-                case "C":
+                case IpClass.C:
                     ClassC(machineNumber, ref forthOctet);
                     break;
             }
 
-            string requestedMachineIp = IpGenarator(firstOctet, secondOctet, thirdOctet, forthOctet);
+            var requestedMachineIp = await IpGenaratorAsync(firstOctet, secondOctet, thirdOctet, forthOctet);
             return (requestedMachineIp, classIp);
         }
 
-        private void NetIdBoundValidation(string classIp, int secondOctet, int thirdOctet, int forthOctet)
+        private async Task NetIdOctetBoundValidationAsync(Task<string> classIp, int secondOctet, int thirdOctet, int forthOctet)
         {
-            switch(classIp)
+            switch (classIp.Result.ToString())
             {
-                case "A":
+                case IpClass.A:
                     if (secondOctet is not 0 || thirdOctet is not 0 || forthOctet is not 0)
-                        throw new InValidIpFormatException("مقدار یکی از اکتت های دوم تا چهارم از 255 بیشتر است.");
+                        throw new InValidIpFormatException(IpExceptionMessages.ClassAOctetOutOfBounds);
                     break;
 
-                case "B":
+                case IpClass.B:
                     if (thirdOctet is not 0 || forthOctet is not 0)
-                        throw new InValidIpFormatException("مقدار یکی از اکتت های سوم یا چهارم از 255 بیشتر است.");
+                        throw new InValidIpFormatException(IpExceptionMessages.ClassBOctetOutOfBounds);
                     break;
-                
-                case "C":
+
+                case IpClass.C:
                     if (forthOctet is not 0)
-                        throw new InValidIpFormatException("مقدار اکتت چهارم از 255 بیشتر است.");
+                        throw new InValidIpFormatException(IpExceptionMessages.ClassCOctetOutOfBounds);
                     break;
             }
         }
 
-        private void MachineNumberValidation(string classIp, int machineNumber)
+        private async Task MachineNumberValidationAsync(Task<string> classIp, int machineNumber)
         {
-            if (machineNumber is 0)
-                throw new InvalidOperationException("شماره ماشین صفر جزو بازه آی‌پی دهی نمی باشد.");
+            if (machineNumber <= 0)
+                throw new InValidMachineIpException(MachineNumberExceptionMessages.ZeroOrNegativeMachineNumberValue);
 
-            switch (classIp)
+            switch (classIp.Result.ToString())
             {
-                case "A":
+                case IpClass.A:
                     if (machineNumber > 16777214)
-                        throw new InValidIpFormatException("شماره ماشین وارد شده بیشتر از ظرفیت کلاس 'آ' می باشد و باید کمتر از 16777215 باشد.");
+                        throw new InValidMachineIpException(MachineNumberExceptionMessages.AClassOutOfCapacity);
                     break;
 
-
-                case "B":
+                case IpClass.B:
                     if (machineNumber > 65534)
-                        throw new InValidIpFormatException("شماره ماشین وارد شده بیشتر از ظرفیت کلاس 'بی' می باشد و باید کمتر از 65535 باشد.");
+                        throw new InValidMachineIpException(MachineNumberExceptionMessages.BClassOutOfCapacity);
                     break;
 
-                case "C":
+                case IpClass.C:
                     if (machineNumber > 254)
-                        throw new InValidIpFormatException("شماره ماشین وارد شده بیشتر از ظرفیت کلاس 'سی' می باشد و باید کمتر از 255 باشد.");
+                        throw new InValidMachineIpException(MachineNumberExceptionMessages.CClassOutOfCapacity);
                     break;
-
-                default:
-                    throw new InValidIpFormatException("آی پی وارد شده از نوع سه کلاس اول نمی باشد.");
-
             }
         }
 
-        private (int firstOctet, int secondOctet, int thirdOctet, int forthOctet) IpSpliter(string ip)
+        private async Task<(int firstOctet, int secondOctet, int thirdOctet, int forthOctet)> IpSpliterAsync(string ip)
         {
 
-            IpValidation(ip);
+            await IpValidationAsync(ip);
 
-            var octets = ip.Split(".");
+            var octets = ip.Split(DOT); 
 
-            OctetValidation(octets);
-
-
+            await OctetValidationAsync(octets);
 
 
             var firstOctet = int.Parse(octets[0]);
@@ -115,42 +113,46 @@ namespace IpFinder.Application.Services
 
         }
 
-        private void OctetValidation(string[] octets)
+        private async Task OctetValidationAsync(string[] octets)
         {
             if (octets.Length is not 4)
-                throw new InValidIpFormatException("آی پی وارد شده صحیح نمی باشد.");
+                throw new InValidIpFormatException(IpExceptionMessages.FourOctetsNotFound);
 
-            foreach (var oct in octets)
-                if (Regex.IsMatch(oct, @".*[^0-9]+.*"))
-                    throw new InValidIpFormatException("آی پی وارد شده شامل کاراکتر غیر عددی می باشد.");
+            foreach (var octet in octets)
+            {
+                if (Regex.IsMatch(octet, IncludeNonNumericalCharacterRegesSample))
+                    throw new InValidIpFormatException(IpExceptionMessages.NonNumericalCharacterFound);
 
-            foreach (var oct in octets)
-                if (int.Parse(oct) > 255)
-                    throw new InValidIpFormatException($"مقدار اکتت {oct} بیشتر از 255 می باشد.");
+                else if (String.IsNullOrWhiteSpace(octet))
+                    throw new InValidIpFormatException(IpExceptionMessages.EmptyOctetFound);
+                
+                else if (int.Parse(octet) > 255)
+                    throw new InValidIpFormatException(IpExceptionMessages.OctetOutOfBound);
+            }
         }
 
-        private void IpValidation(string ip)
+        private async Task IpValidationAsync(string ip)
         {
             if (String.IsNullOrWhiteSpace(ip))
-                throw new InValidIpFormatException("آی پی وارد نشده است.");
+                throw new InValidIpFormatException(IpExceptionMessages.EmptyOrWhiteSpaceIpValue);
         }
 
-        private string FindClassIp(int firstOctet)
+        private async Task<string> FindClassIpAsync(int firstOctet)
         {
             if (firstOctet <= 127)
-                return "A";
+                return IpClass.A;
 
             else if (firstOctet >= 128 && firstOctet <= 191)
-                return "B";
+                return IpClass.B;
 
             else if (firstOctet >= 192 && firstOctet <= 223)
-                return "C";
+                return IpClass.C;
 
             else if (firstOctet >= 224 && firstOctet <= 239)
-                return "D";
+                return IpClass.D;
 
             else
-                return "E";
+                return IpClass.E;
         }
 
         private void ClassA(int machineNumber, ref int secondOctet, ref int thirdOctet, ref int forthOctet)
@@ -168,11 +170,11 @@ namespace IpFinder.Application.Services
         }
 
         private void ClassC(int machineNumber, ref int forthOctet)
-            => forthOctet += machineNumber ; 
+            => forthOctet += machineNumber;
 
 
-        private string IpGenarator(int firstOctet, int secondOctet, int thirdOctet, int forthOctet)
-            => firstOctet + "." + secondOctet + "." + thirdOctet + "." + forthOctet;
+        private async Task<string> IpGenaratorAsync(int firstOctet, int secondOctet, int thirdOctet, int forthOctet)
+            => firstOctet + DOT + secondOctet + DOT + thirdOctet + DOT + forthOctet;
 
 
     }
